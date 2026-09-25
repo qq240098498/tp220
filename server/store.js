@@ -10,6 +10,7 @@ const DEFAULT_SETTINGS = {
   rmsLimitSec: 3.0,
   shallowDepthLimitKm: 70,
   reviewToleranceMagnitude: 0.3,
+  inactiveStationPolicy: 'exclude',
   mergeWindowMinutes: 90,
   mergeDistanceKm: 30,
   residualLimitSec: 2.5,

@@ -5,6 +5,7 @@
     "rmsLimitSec": 3,
     "shallowDepthLimitKm": 70,
     "reviewToleranceMagnitude": 0.3,
+    "inactiveStationPolicy": "exclude",
     "mergeWindowMinutes": 90,
     "mergeDistanceKm": 30,
     "residualLimitSec": 2.5,
@@ -22,7 +23,7 @@
       "sensorType": "宽频带",
       "installDate": "2019-05-12",
       "status": "运行",
-      "remark": ""
+      "remark": "123123"
     },
     {
       "id": "sta-0002",

@@ -334,13 +334,16 @@
         '<p class="rail-note">震级差值严格大于容差才算超容差；正好等于容差不算超。</p>' +
         '</div>' +
         '<div class="rail-block"><h3>发布台账</h3>' +
-        '<p class="rail-note">同一事件只能有一条有效发布，重复发布会在发布时被拦下。</p></div>';
+        '<p class="rail-note">同一事件只能有一条有效发布，重复发布会在发布时被拦下。</p></div>' +
+        '<div class="rail-block"><h3>台站状态口径</h3>' +
+        '<p class="rail-note">停用/维护台站的震相保留并单独标注；参不参与震级与残差计算由设置里的「停用/维护台站口径」决定，默认不参与。</p></div>';
     } else {
       rail.innerHTML =
         '<div class="rail-block"><h3>概览</h3>' +
         '<p class="rail-note">点指标卡会跳到对应标签；点台站行会跳到「台站」标签并展开该台站。</p></div>' +
         '<div class="rail-block"><h3>口径</h3>' +
-        '<p class="rail-note">页面上的数字全部来自接口，前端不重算、不重排。</p></div>';
+        '<p class="rail-note">页面上的数字全部来自接口，前端不重算、不重排。</p>' +
+        '<p class="rail-note">停用/维护台站在事件详情里单独标注，默认不参与震级与残差计算（可在设置里改口径）。</p></div>';
     }
   }
 
@@ -621,6 +624,18 @@
      十、事件
      ============================================================ */
 
+  // 台站数列：参与计算的台站数 + 小字写清共用了几台、其中几台停用/维护
+  function stationCountCell(e) {
+    const u = e.stationUsage;
+    let sub = '';
+    if (u && u.total) {
+      const parts = ['共 ' + u.total + ' 台'];
+      if (u.inactiveCount > 0) parts.push('停用/维护 ' + u.inactiveCount + ' 台');
+      sub = '<div class="cell-sub' + (u.inactiveCount > 0 ? ' cell-sub-warn' : '') + '">' + esc(parts.join(' · ')) + '</div>';
+    }
+    return '<td class="num">' + num(e.stationCount) + sub + '</td>';
+  }
+
   function renderEvents() {
     const rows = $('#eventRows');
     if (!state.events.length) {
@@ -635,7 +650,7 @@
         '<td class="num">' + num(e.lon) + '</td>' +
         '<td class="num">' + num(e.depth) + '</td>' +
         '<td class="num strong">' + num(e.magnitude) + '</td>' +
-        '<td class="num">' + num(e.stationCount) + '</td>' +
+        stationCountCell(e) +
         '<td class="num">' + num(e.rms) + '</td>' +
         '<td>' + pill(e.status) + '</td>' +
         '<td class="num">' + num(e.reviewCount) + '</td>' +
@@ -665,18 +680,40 @@
         '<span class="check-value">当前值 ' + text(c.value) + '　阈值 ' + text(c.limit) + '</span>' +
         '</li>';
     }).join('');
+    const excluded = check.excludedStations || [];
+    const policyLine = '台站状态口径：' +
+      (check.inactivePolicy === 'include' ? '停用/维护台站参与震级与残差计算' : '停用/维护台站不参与震级与残差计算') +
+      (excluded.length ? '，本次排除 ' + excluded.length + ' 台（' + excluded.map(function (s) { return s.code + ' ' + s.status; }).join('、') + '）' : '，本次无被排除的台站');
     return '<div class="check-block">' +
       '<div class="check-head">自动发布判定（四条同时满足才自动发布）：' +
       '<strong class="' + (check.pass ? 'good' : 'bad') + '">' +
       (check.pass ? '四条都满足，可以自动发布' : '还有条件不满足：' + esc((check.failed || []).join('、'))) +
       '</strong></div>' +
+      '<div class="check-head">' + esc(policyLine) + '</div>' +
       '<ul class="check-list">' + items + '</ul></div>';
+  }
+
+  // 事件详情里的台站使用情况：共用几台、运行几台、停用/维护几台（列代码）、按口径实际参与几台
+  function stationUsageText(d) {
+    const u = d.stationUsage;
+    if (!u || !u.total) return '还没有台站提供震相';
+    let line = '共 ' + u.total + ' 台：运行 ' + u.running + ' 台';
+    if (u.inactiveCount > 0) {
+      line += '，停用/维护 ' + u.inactiveCount + ' 台（' +
+        u.inactive.map(function (s) { return s.code + ' ' + s.status; }).join('、') + '）';
+    }
+    if (u.unknown > 0) line += '，台账外 ' + u.unknown + ' 台';
+    line += '；按当前口径' +
+      (d.inactivePolicy === 'include' ? '停用/维护台站参与震级与残差计算' : '停用/维护台站不参与震级与残差计算') +
+      '，实际参与 ' + d.stationCount + ' 台';
+    return line;
   }
 
   function eventArrivalTable(arrivals) {
     const body = arrivals.map(function (a) {
       return '<tr><td>' + show(a.stationName) + '</td>' +
         '<td class="mono">' + show(a.stationCode) + '</td>' +
+        '<td>' + pill(a.stationStatus) + '</td>' +
         '<td>' + show(a.phaseType) + '</td>' +
         '<td>' + show(a.at) + '</td>' +
         '<td class="num">' + show(a.distanceKm) + '</td>' +
@@ -685,10 +722,11 @@
         '<td class="num">' + show(a.residualSec) + '</td>' +
         '<td>' + show(a.pickType) + '</td>' +
         '<td>' + show(a.quality) + '</td>' +
-        '<td>' + show(a.picker) + '</td></tr>';
+        '<td>' + show(a.picker) + '</td>' +
+        '<td>' + (a.stationCounted ? '参与' : '<span class="pill pill-off">未参与</span>') + '</td></tr>';
     }).join('');
     return miniTable(
-      ['台站', '台站代码', '相位', '到时', '震距', '振幅', '单台震级', '残差', '拾取方式', '质量', '拾取人'],
+      ['台站', '台站代码', '台站状态', '相位', '到时', '震距', '振幅', '单台震级', '残差', '拾取方式', '质量', '拾取人', '参与计算'],
       body
     );
   }
@@ -734,6 +772,7 @@
       '<div><span class="k">震级</span><span class="v">' + show(d.magnitude) + '（' + show(d.magnitudeType) + '）</span></div>' +
       '<div><span class="k">震级初报</span><span class="v">' + show(d.magnitudeInit) + '</span></div>' +
       '<div><span class="k">参与台站数</span><span class="v">' + show(d.stationCount) + '</span></div>' +
+      '<div><span class="k">台站使用情况</span><span class="v">' + show(stationUsageText(d)) + '</span></div>' +
       '<div><span class="k">台站代码</span><span class="v">' + show((d.stationCodes || []).join('、')) + '</span></div>' +
       '<div><span class="k">震相条数</span><span class="v">' + show(d.arrivalCount) + '</span></div>' +
       '<div><span class="k">走时残差</span><span class="v">' + show(d.rms) + '</span></div>' +
@@ -936,6 +975,7 @@
       '<div><span class="k">规范台站代码</span><span class="v">' + show(a.stationCode) + '</span></div>' +
       '<div><span class="k">原始台站代码</span><span class="v">' + show(a.rawStationCode) + '</span></div>' +
       '<div><span class="k">台账是否命中</span><span class="v">' + (a.stationKnown ? '命中' : '未命中') + '</span></div>' +
+      '<div><span class="k">台站状态</span><span class="v">' + (a.stationStatus ? esc(a.stationStatus) : '—') + (a.stationKnown && a.stationStatus !== '运行' ? '（停用/维护台站的震相默认不参与震级与残差计算）' : '') + '</span></div>' +
       '<div><span class="k">事件</span><span class="v">' + show(a.eventCode) + '（' + show(a.eventId) + '）</span></div>' +
       '<div><span class="k">相位</span><span class="v">' + show(a.phaseType) + '</span></div>' +
       '<div><span class="k">到时</span><span class="v">' + show(a.at) + '</span></div>' +
@@ -1221,7 +1261,14 @@
         fieldHtml('台站数门槛', 'minStationCount', s.minStationCount, { type: 'number', step: '1' }) +
         fieldHtml('残差上限（秒）', 'rmsLimitSec', s.rmsLimitSec, { type: 'number', step: '0.1' }) +
         fieldHtml('浅源深度上限（公里）', 'shallowDepthLimitKm', s.shallowDepthLimitKm, { type: 'number', step: '1' }) +
-        fieldHtml('复核容差', 'reviewToleranceMagnitude', s.reviewToleranceMagnitude, { type: 'number', step: '0.01' }),
+        fieldHtml('复核容差', 'reviewToleranceMagnitude', s.reviewToleranceMagnitude, { type: 'number', step: '0.01' }) +
+        fieldHtml('停用/维护台站口径', 'inactiveStationPolicy', s.inactiveStationPolicy || 'exclude', {
+          tag: 'select',
+          options: [
+            { value: 'exclude', label: '不参与震级与残差计算（默认）' },
+            { value: 'include', label: '参与震级与残差计算' }
+          ]
+        }),
       actions: [
         { label: '取消', cls: 'btn-ghost' },
         { label: '保存', cls: 'btn-primary', onClick: submitSettings }
@@ -1233,7 +1280,8 @@
     clearInvalid();
     const body = {};
     $$('#modalBody .field-input').forEach(function (input) {
-      body[input.dataset.field] = Number(input.value);
+      const key = input.dataset.field;
+      body[key] = key === 'inactiveStationPolicy' ? input.value : Number(input.value);
     });
     return api('/api/settings', { method: 'PATCH', body: body })
       .then(function (saved) {

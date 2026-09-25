@@ -23,6 +23,10 @@ function decorate(data, event) {
     magnitudeType: event.magnitudeType || 'ML',
     stationCount: magnitude.stationCount,
     stationCodes: quakelib.stationsOfEvent(data, event.id),
+    stationUsage: quakelib.eventStationUsage(data, event.id),
+    excludedStations: magnitude.excludedStations,
+    excludedStationCount: magnitude.excludedStationCount,
+    inactivePolicy: quakelib.inactiveStationPolicy(data.settings),
     arrivalCount: arrivals.length,
     rms,
     autoCheck: quakelib.autoPublishCheck(data, event),
@@ -62,6 +66,8 @@ function detail(data, id) {
     const distance = station ? quakelib.distanceKm(station.lat, station.lon, event.lat, event.lon) : null;
     return Object.assign({}, a, {
       stationName: station ? station.name : '(台站台账里没有这个代码)',
+      stationStatus: station ? station.status : null,
+      stationCounted: quakelib.stationCountedInCalc(station, data.settings),
       distanceKm: distance,
       stationMagnitude: station && a.amplitudeUm != null ? quakelib.stationMagnitude(a.amplitudeUm, distance) : null,
     });

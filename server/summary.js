@@ -36,6 +36,7 @@ function overview(data) {
       rmsLimitSec: Number(settings.rmsLimitSec),
       shallowDepthLimitKm: Number(settings.shallowDepthLimitKm),
       reviewToleranceMagnitude: Number(settings.reviewToleranceMagnitude),
+      inactiveStationPolicy: quakelib.inactiveStationPolicy(settings),
     },
     stations: data.stations.map((s) => {
       const arrivals = data.arrivals.filter((a) => quakelib.normalizeStationCode(a.stationCode) === quakelib.normalizeStationCode(s.code));
