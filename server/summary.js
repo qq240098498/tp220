@@ -19,6 +19,8 @@ function overview(data) {
     today: store.todayIso(),
     stationCount: data.stations.length,
     runningStationCount: data.stations.filter((s) => s.status === '运行').length,
+    stoppedStationCount: data.stations.filter((s) => s.status === '停用').length,
+    maintenanceStationCount: data.stations.filter((s) => s.status === '维护').length,
     eventCount: data.events.length,
     statusCount,
     arrivalCount: data.arrivals.length,
@@ -36,6 +38,10 @@ function overview(data) {
       rmsLimitSec: Number(settings.rmsLimitSec),
       shallowDepthLimitKm: Number(settings.shallowDepthLimitKm),
       reviewToleranceMagnitude: Number(settings.reviewToleranceMagnitude),
+      magnitudeIncludeStopped: settings.magnitudeIncludeStopped === true,
+      magnitudeIncludeMaintenance: settings.magnitudeIncludeMaintenance === true,
+      residualIncludeStopped: settings.residualIncludeStopped === true,
+      residualIncludeMaintenance: settings.residualIncludeMaintenance === true,
     },
     stations: data.stations.map((s) => {
       const arrivals = data.arrivals.filter((a) => quakelib.normalizeStationCode(a.stationCode) === quakelib.normalizeStationCode(s.code));

@@ -8,7 +8,11 @@
     "mergeWindowMinutes": 90,
     "mergeDistanceKm": 30,
     "residualLimitSec": 2.5,
-    "depthDefaultKm": 10
+    "depthDefaultKm": 10,
+    "magnitudeIncludeStopped": false,
+    "magnitudeIncludeMaintenance": false,
+    "residualIncludeStopped": false,
+    "residualIncludeMaintenance": false
   },
   "stations": [
     {
@@ -47,7 +51,7 @@
       "elevation": 640,
       "sensorType": "宽频带",
       "installDate": "2018-11-20",
-      "status": "运行",
+      "status": "停用",
       "remark": ""
     },
     {
@@ -1023,6 +1027,34 @@
       "quality": "良",
       "picker": "自动拾取",
       "remark": ""
+    },
+    {
+      "id": "arr-0065",
+      "eventId": "eq-0006",
+      "stationId": "sta-0004",
+      "stationCode": "QL04",
+      "phaseType": "P",
+      "at": "2026-09-15 09:05:11",
+      "amplitudeUm": 24100.5,
+      "residualSec": 1.8,
+      "pickType": "自动",
+      "quality": "差",
+      "picker": "自动拾取",
+      "remark": "停用待改造期间的残留观测，数据留档待核"
+    },
+    {
+      "id": "arr-0066",
+      "eventId": "eq-0006",
+      "stationId": "sta-0004",
+      "stationCode": "QL04",
+      "phaseType": "S",
+      "at": "2026-09-15 09:05:19",
+      "amplitudeUm": 38560.8,
+      "residualSec": -1.6,
+      "pickType": "自动",
+      "quality": "差",
+      "picker": "自动拾取",
+      "remark": "停用待改造期间的残留观测，数据留档待核"
     },
     {
       "id": "arr-0061",

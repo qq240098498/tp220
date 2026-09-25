@@ -21,10 +21,21 @@ function decorate(data, event) {
   return Object.assign({}, event, {
     magnitude: magnitude.magnitude,
     magnitudeType: event.magnitudeType || 'ML',
+    // 参与震级中位数的台站数（停用、维护按口径决定算不算）
     stationCount: magnitude.stationCount,
     stationCodes: quakelib.stationsOfEvent(data, event.id),
+    // 这次事件实际用了几个台、其中几个停用 / 维护、几个计入了震级
+    usedStationCount: magnitude.usedStationCount,
+    stoppedStationCount: magnitude.stoppedStationCount,
+    maintenanceStationCount: magnitude.maintenanceStationCount,
+    abnormalStationCount: magnitude.abnormalStationCount,
+    magnitudeStationCount: magnitude.stationCount,
+    stationBreakdown: magnitude.stations,
+    // 残差按口径计入 / 排除的震相条数
+    rmsUsedArrivalCount: rms.usedArrivalCount,
+    rmsExcludedArrivalCount: rms.excludedArrivalCount,
     arrivalCount: arrivals.length,
-    rms,
+    rms: rms.rms,
     autoCheck: quakelib.autoPublishCheck(data, event),
     latestReview: latest
       ? { reviewer: latest.reviewer, at: latest.at, action: latest.action, mutation: latest.mutation || '', overTolerance: latest.overTolerance }
@@ -56,14 +67,24 @@ function find(data, id) {
 
 function detail(data, id) {
   const event = find(data, id);
+  const stats = quakelib.eventStationStats(data, id);
+  const byCode = {};
+  for (const s of stats.stations) byCode[s.code] = s;
   const arrivals = data.arrivals.filter((a) => a.eventId === id).sort((a, b) => (a.at < b.at ? -1 : 1));
   const enriched = arrivals.map((a) => {
+    const code = quakelib.normalizeStationCode(a.stationCode);
     const station = quakelib.findStation(data, a.stationCode);
+    const info = byCode[code];
     const distance = station ? quakelib.distanceKm(station.lat, station.lon, event.lat, event.lon) : null;
     return Object.assign({}, a, {
       stationName: station ? station.name : '(台站台账里没有这个代码)',
+      stationStatus: station ? station.status : '',
+      stationAbnormal: station ? quakelib.isAbnormalStatus(station.status) : false,
       distanceKm: distance,
       stationMagnitude: station && a.amplitudeUm != null ? quakelib.stationMagnitude(a.amplitudeUm, distance) : null,
+      // 这条震相是否按口径计入震级（只有代表该台站取值的那一条才算）与残差
+      inMagnitude: info ? info.inMagnitude && info.magnitudeArrivalId === a.id : false,
+      inResidual: info ? info.inResidual : false,
     });
   });
   return Object.assign({}, decorate(data, event), {

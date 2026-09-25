@@ -14,6 +14,11 @@ const DEFAULT_SETTINGS = {
   mergeDistanceKm: 30,
   residualLimitSec: 2.5,
   depthDefaultKm: 10,
+  // 台站状态口径：停用 / 维护中的台站数据照样进编目，这两项决定它们参不参与震级与残差计算
+  magnitudeIncludeStopped: false,
+  magnitudeIncludeMaintenance: false,
+  residualIncludeStopped: false,
+  residualIncludeMaintenance: false,
 };
 
 function normalize(raw) {

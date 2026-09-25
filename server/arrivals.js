@@ -14,6 +14,8 @@ function decorate(data, arrival) {
     stationCode: quakelib.normalizeStationCode(arrival.stationCode),
     rawStationCode: arrival.stationCode,
     stationKnown: !!station,
+    stationStatus: station ? station.status : '',
+    stationAbnormal: station ? quakelib.isAbnormalStatus(station.status) : false,
     eventCode: event ? event.code : '',
   });
 }

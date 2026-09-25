@@ -401,6 +401,50 @@ textarea.field-input { resize: vertical; }
 .pill-done { border-color: #bcd8c8; background: #eaf5ee; color: var(--ok); }
 .pill-pub { border-color: var(--indigo); background: var(--indigo-soft); color: var(--indigo); }
 
+/* ---------- 台站状态口径：用台小结 / 计入标签 / 异常行 ---------- */
+
+.th-sub { font-weight: 400; color: var(--muted); font-size: 11px; }
+.warn-text { color: #96690f; }
+
+.cell-note { display: block; font-size: 11px; font-weight: 400; color: var(--muted); margin-top: 1px; white-space: nowrap; }
+
+.usage-block {
+  margin-top: 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--ok);
+  border-radius: var(--radius);
+  background: #fff;
+}
+.usage-block.has-abnormal { border-left-color: var(--accent); background: #fdfaf8; }
+.usage-title { font-size: 13px; color: var(--ink); }
+.usage-lines { margin: 4px 0 8px; font-size: 12px; color: var(--muted); }
+
+.tag {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: 9px;
+  font-size: 11px;
+  border: 1px solid var(--line);
+  white-space: nowrap;
+}
+.tag-in { border-color: #bcd8c8; background: #eaf5ee; color: var(--ok); }
+.tag-out { border-color: #e6c2ba; background: #fbeeeb; color: var(--bad); }
+.calc-tags { display: inline-flex; flex-wrap: wrap; gap: 3px; }
+
+/* 停用 / 维护台站的整行给一个淡底色，编目里一眼能找到 */
+.data-table tr.row-abnormal td,
+.mini-table tr.row-abnormal td { background: #fdf4f1; }
+
+.settings-sub {
+  margin: 12px 0 4px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--indigo);
+}
+
 /* ---------- 弹层 ---------- */
 
 .modal-mask {

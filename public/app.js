@@ -340,7 +340,7 @@
         '<div class="rail-block"><h3>概览</h3>' +
         '<p class="rail-note">点指标卡会跳到对应标签；点台站行会跳到「台站」标签并展开该台站。</p></div>' +
         '<div class="rail-block"><h3>口径</h3>' +
-        '<p class="rail-note">页面上的数字全部来自接口，前端不重算、不重排。</p></div>';
+        '<p class="rail-note">页面上的数字全部来自接口，前端不重算、不重排。停用、维护台站参不参与震级与残差，在「设置」里分开口径控制。</p></div>';
     }
   }
 
@@ -404,8 +404,11 @@
   function renderOverview() {
     const s = state.summary;
     if (!s) return;
+    const stationSub = '运行 ' + s.runningStationCount +
+      (Number(s.stoppedStationCount) ? ' · <span class="bad">停用 ' + s.stoppedStationCount + '</span>' : '') +
+      (Number(s.maintenanceStationCount) ? ' · <span class="warn-text">维护 ' + s.maintenanceStationCount + '</span>' : '');
     const cards = [
-      { label: '台站数', value: s.stationCount, sub: '运行中 ' + s.runningStationCount + ' 个', jump: 'stations' },
+      { label: '台站数', value: s.stationCount, subHtml: stationSub, jump: 'stations' },
       { label: '事件总数', value: s.eventCount, sub: statusLine(s.statusCount), jump: 'events' },
       { label: '震相条数', value: s.arrivalCount, sub: '台账里的震相记录', jump: 'arrivals' },
       { label: '复核条数', value: s.reviewCount, sub: '复核台账', jump: 'reviews' },
@@ -422,7 +425,7 @@
         (card.overTolerance ? ' data-over-tolerance="1"' : '') + '>' +
         '<span class="card-label">' + esc(card.label) + '</span>' +
         '<span class="card-value">' + num(card.value) + '</span>' +
-        '<span class="card-sub">' + esc(card.sub) + '</span>' +
+        '<span class="card-sub">' + (card.subHtml !== undefined ? card.subHtml : esc(card.sub)) + '</span>' +
         '</button>';
     }).join('');
 
@@ -621,6 +624,15 @@
      十、事件
      ============================================================ */
 
+  // 台站数列：主数字是按口径计入震级的台站数，下面小字写清这次实际用了几个台、其中停用/维护几个
+  function stationCountCell(e) {
+    let note = '用台 ' + text(e.usedStationCount);
+    if (Number(e.abnormalStationCount) > 0) {
+      note += ' · <span class="bad">停' + text(e.stoppedStationCount) + ' 维' + text(e.maintenanceStationCount) + '</span>';
+    }
+    return '<span class="strong">' + num(e.stationCount) + '</span><span class="cell-note">' + note + '</span>';
+  }
+
   function renderEvents() {
     const rows = $('#eventRows');
     if (!state.events.length) {
@@ -635,7 +647,7 @@
         '<td class="num">' + num(e.lon) + '</td>' +
         '<td class="num">' + num(e.depth) + '</td>' +
         '<td class="num strong">' + num(e.magnitude) + '</td>' +
-        '<td class="num">' + num(e.stationCount) + '</td>' +
+        '<td class="num">' + stationCountCell(e) + '</td>' +
         '<td class="num">' + num(e.rms) + '</td>' +
         '<td>' + pill(e.status) + '</td>' +
         '<td class="num">' + num(e.reviewCount) + '</td>' +
@@ -673,22 +685,42 @@
       '<ul class="check-list">' + items + '</ul></div>';
   }
 
+  // 逐条震相上标清这条数据按口径计不计入震级 / 残差
+  function calcTags(a) {
+    var mag = '';
+    if (a.stationMagnitude !== null && a.stationMagnitude !== undefined) {
+      mag = a.inMagnitude
+        ? '<span class="tag tag-in">计入震级</span>'
+        : '<span class="tag tag-out">不计震级</span>';
+    }
+    var res = '';
+    if (a.residualSec !== null && a.residualSec !== undefined) {
+      res = a.inResidual
+        ? '<span class="tag tag-in">计入残差</span>'
+        : '<span class="tag tag-out">不计残差</span>';
+    }
+    return '<span class="calc-tags">' + mag + res + '</span>';
+  }
+
   function eventArrivalTable(arrivals) {
     const body = arrivals.map(function (a) {
-      return '<tr><td>' + show(a.stationName) + '</td>' +
+      return '<tr' + (a.stationAbnormal ? ' class="row-abnormal"' : '') + '>' +
+        '<td>' + show(a.stationName) + '</td>' +
         '<td class="mono">' + show(a.stationCode) + '</td>' +
+        '<td>' + (a.stationStatus ? pill(a.stationStatus) : '<span class="muted">—</span>') + '</td>' +
         '<td>' + show(a.phaseType) + '</td>' +
         '<td>' + show(a.at) + '</td>' +
         '<td class="num">' + show(a.distanceKm) + '</td>' +
         '<td class="num">' + show(a.amplitudeUm) + '</td>' +
         '<td class="num">' + show(a.stationMagnitude) + '</td>' +
         '<td class="num">' + show(a.residualSec) + '</td>' +
+        '<td>' + calcTags(a) + '</td>' +
         '<td>' + show(a.pickType) + '</td>' +
         '<td>' + show(a.quality) + '</td>' +
         '<td>' + show(a.picker) + '</td></tr>';
     }).join('');
     return miniTable(
-      ['台站', '台站代码', '相位', '到时', '震距', '振幅', '单台震级', '残差', '拾取方式', '质量', '拾取人'],
+      ['台站', '台站代码', '状态', '相位', '到时', '震距', '振幅', '单台震级', '残差', '是否计入计算', '拾取方式', '质量', '拾取人'],
       body
     );
   }
@@ -720,6 +752,45 @@
     return miniTable(['发布时刻', '类型', '操作人', '渠道', '震级', '备注'], body);
   }
 
+  // 用台口径小结：这次用了几个台、其中停用/维护几个、几个真正计入震级与残差
+  function stationUsageBlock(d) {
+    const abnormal = Number(d.abnormalStationCount) || 0;
+    const lines = [];
+    if (abnormal > 0) {
+      lines.push('其中停用 <strong class="bad">' + text(d.stoppedStationCount) + '</strong> 个、' +
+        '维护 <strong class="bad">' + text(d.maintenanceStationCount) + '</strong> 个');
+    }
+    lines.push('按当前口径计入震级 <strong>' + text(d.magnitudeStationCount) + '</strong> 个台');
+    lines.push('残差计入 ' + text(d.rmsUsedArrivalCount) + ' 条震相' +
+      (Number(d.rmsExcludedArrivalCount) > 0 ? '，<span class="bad">排除停用/维护 ' + text(d.rmsExcludedArrivalCount) + ' 条</span>' : ''));
+    return '<div class="usage-block' + (abnormal > 0 ? ' has-abnormal' : '') + '">' +
+      '<div class="usage-title">本次用台 <strong>' + text(d.usedStationCount) + '</strong> 个' +
+      (abnormal > 0 ? '（<span class="bad">停用/维护 ' + text(abnormal) + ' 个</span>）' : '') + '</div>' +
+      '<p class="usage-lines">' + lines.join('；') + '。停用、维护台站的观测数据照样在编目里，只是否参与计算看「设置」里的口径。</p>' +
+      stationBreakdownTable(d.stationBreakdown) +
+      '</div>';
+  }
+
+  function markIn(yes) {
+    return yes ? '<span class="tag tag-in">计入</span>' : '<span class="tag tag-out">不计</span>';
+  }
+
+  function stationBreakdownTable(breakdown) {
+    const rows = breakdown || [];
+    if (!rows.length) return '<p class="empty">这个事件还没有关联台站</p>';
+    const body = rows.map(function (s) {
+      return '<tr' + (s.abnormal ? ' class="row-abnormal"' : '') + '>' +
+        '<td class="mono">' + show(s.code) + '</td>' +
+        '<td>' + show(s.name) + '</td>' +
+        '<td>' + (s.status ? pill(s.status) : '<span class="muted">台账外</span>') + '</td>' +
+        '<td class="num">' + show(s.magnitude) + '</td>' +
+        '<td>' + markIn(s.inMagnitude) + '</td>' +
+        '<td>' + markIn(s.inResidual) + '</td>' +
+        '</tr>';
+    }).join('');
+    return miniTable(['台站代码', '台站名称', '当前状态', '单台震级', '计入震级', '计入残差'], body);
+  }
+
   function eventDetailHtml(d) {
     const arrivals = d.arrivals || [];
     const reviews = d.reviews || [];
@@ -733,8 +804,6 @@
       '<div><span class="k">区域</span><span class="v">' + show(d.regionName) + '</span></div>' +
       '<div><span class="k">震级</span><span class="v">' + show(d.magnitude) + '（' + show(d.magnitudeType) + '）</span></div>' +
       '<div><span class="k">震级初报</span><span class="v">' + show(d.magnitudeInit) + '</span></div>' +
-      '<div><span class="k">参与台站数</span><span class="v">' + show(d.stationCount) + '</span></div>' +
-      '<div><span class="k">台站代码</span><span class="v">' + show((d.stationCodes || []).join('、')) + '</span></div>' +
       '<div><span class="k">震相条数</span><span class="v">' + show(d.arrivalCount) + '</span></div>' +
       '<div><span class="k">走时残差</span><span class="v">' + show(d.rms) + '</span></div>' +
       '<div><span class="k">来源</span><span class="v">' + show(d.source) + '</span></div>' +
@@ -744,8 +813,10 @@
       '<div><span class="k">备注</span><span class="v">' + show(d.remark) + '</span></div>';
 
     return '<div class="detail-grid">' + grid + '</div>' +
+      '<h4 class="detail-title">用台与计算口径</h4>' +
+      stationUsageBlock(d) +
       autoCheckBlock(d.autoCheck) +
-      '<h4 class="detail-title">逐条震相（接口返回 ' + arrivals.length + ' 条）</h4>' +
+      '<h4 class="detail-title">逐条震相（接口返回 ' + arrivals.length + ' 条；停用/维护台站已标出，「是否计入」按当前口径）</h4>' +
       (arrivals.length ? eventArrivalTable(arrivals) : '<p class="empty">这个事件还没有震相记录，没有震相的事件只能走人工发布</p>') +
       '<h4 class="detail-title">复核历史（接口返回 ' + reviews.length + ' 条）</h4>' +
       (reviews.length ? eventReviewTable(reviews) : '<p class="empty">还没有复核记录</p>') +
@@ -900,13 +971,14 @@
   function renderArrivals() {
     const rows = $('#arrivalRows');
     if (!state.arrivals.length) {
-      rows.innerHTML = '<tr><td colspan="10" class="empty">没有符合条件的震相记录</td></tr>';
+      rows.innerHTML = '<tr><td colspan="11" class="empty">没有符合条件的震相记录</td></tr>';
       return;
     }
     rows.innerHTML = state.arrivals.map(function (a) {
-      return '<tr class="data-row" data-arrival-id="' + esc(a.id) + '">' +
+      return '<tr class="data-row' + (a.stationAbnormal ? ' row-abnormal' : '') + '" data-arrival-id="' + esc(a.id) + '">' +
         '<td class="mono">' + show(a.eventCode) + '</td>' +
         '<td class="mono">' + show(a.stationCode) + '</td>' +
+        '<td>' + (a.stationStatus ? pill(a.stationStatus) : '<span class="muted">台账外</span>') + '</td>' +
         '<td>' + show(a.phaseType) + '</td>' +
         '<td>' + show(a.at) + '</td>' +
         '<td class="num">' + num(a.amplitudeUm) + '</td>' +
@@ -933,6 +1005,7 @@
     const grid =
       '<div><span class="k">记录号</span><span class="v">' + show(a.id) + '</span></div>' +
       '<div><span class="k">台站名称</span><span class="v">' + show(a.stationName) + '</span></div>' +
+      '<div><span class="k">台站状态</span><span class="v">' + (a.stationStatus ? pill(a.stationStatus) : '台账外') + '</span></div>' +
       '<div><span class="k">规范台站代码</span><span class="v">' + show(a.stationCode) + '</span></div>' +
       '<div><span class="k">原始台站代码</span><span class="v">' + show(a.rawStationCode) + '</span></div>' +
       '<div><span class="k">台账是否命中</span><span class="v">' + (a.stationKnown ? '命中' : '未命中') + '</span></div>' +
@@ -1221,7 +1294,13 @@
         fieldHtml('台站数门槛', 'minStationCount', s.minStationCount, { type: 'number', step: '1' }) +
         fieldHtml('残差上限（秒）', 'rmsLimitSec', s.rmsLimitSec, { type: 'number', step: '0.1' }) +
         fieldHtml('浅源深度上限（公里）', 'shallowDepthLimitKm', s.shallowDepthLimitKm, { type: 'number', step: '1' }) +
-        fieldHtml('复核容差', 'reviewToleranceMagnitude', s.reviewToleranceMagnitude, { type: 'number', step: '0.01' }),
+        fieldHtml('复核容差', 'reviewToleranceMagnitude', s.reviewToleranceMagnitude, { type: 'number', step: '0.01' }) +
+        '<p class="settings-sub">停用 / 维护台站的计算口径</p>' +
+        '<p class="modal-note">不勾：这类台站的震相仍在编目里留痕，但不计入对应计算；勾上：连同它们一起算。震级与残差可分别设定。</p>' +
+        checkboxHtml('停用台站参与震级', 'magnitudeIncludeStopped', !!s.magnitudeIncludeStopped) +
+        checkboxHtml('维护中台站参与震级', 'magnitudeIncludeMaintenance', !!s.magnitudeIncludeMaintenance) +
+        checkboxHtml('停用台站参与残差', 'residualIncludeStopped', !!s.residualIncludeStopped) +
+        checkboxHtml('维护中台站参与残差', 'residualIncludeMaintenance', !!s.residualIncludeMaintenance),
       actions: [
         { label: '取消', cls: 'btn-ghost' },
         { label: '保存', cls: 'btn-primary', onClick: submitSettings }
@@ -1233,7 +1312,7 @@
     clearInvalid();
     const body = {};
     $$('#modalBody .field-input').forEach(function (input) {
-      body[input.dataset.field] = Number(input.value);
+      body[input.dataset.field] = input.type === 'checkbox' ? input.checked : Number(input.value);
     });
     return api('/api/settings', { method: 'PATCH', body: body })
       .then(function (saved) {
