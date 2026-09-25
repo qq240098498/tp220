@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>地震台网事件编目与复核台</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">震</span>
+    <div class="brand-text">
+      <h1>地震台网事件编目与复核台</h1>
+      <p class="brand-sub">值班组 · 台站与震相 · 事件编目 · 复核与发布</p>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span class="today" id="todayText">今日 —</span>
+    <span class="health" id="healthText">接口：检测中</span>
+    <button type="button" class="btn btn-primary" id="btnSettings">设置</button>
+  </div>
+</header>
+
+<nav class="tabbar" id="tabBar">
+  <button type="button" class="tab is-active" data-view="overview">概览</button>
+  <button type="button" class="tab" data-view="stations">台站</button>
+  <button type="button" class="tab" data-view="events">事件</button>
+  <button type="button" class="tab" data-view="arrivals">震相</button>
+  <button type="button" class="tab" data-view="reviews">复核与发布</button>
+</nav>
+
+<div class="banner" id="errorBanner" hidden>
+  <div class="banner-head">
+    <strong id="errorMessage">出错了</strong>
+    <button type="button" class="btn btn-ghost btn-sm" id="errorClose">关闭</button>
+  </div>
+  <ul class="banner-detail" id="errorDetails"></ul>
+</div>
+
+<main class="shell">
+  <aside class="rail" id="filterRail"></aside>
+  <section class="stage">
+
+    <section class="view is-active" data-view="overview" id="view-overview">
+      <div class="cards" id="overviewCards"></div>
+      <div class="panel">
+        <div class="panel-head">
+          <h2>台站速览</h2>
+          <span class="hint">点一行跳到「台站」标签并展开该台站</span>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>代码</th><th>名称</th><th>状态</th><th>区域</th><th>震相条数</th><th>人工条数</th></tr>
+            </thead>
+            <tbody id="overviewStationRows"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" data-view="stations" id="view-stations">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>台站台账</h2>
+          <span class="hint">点一行展开经纬度、安装日期、备注与最近的震相记录</span>
+          <span class="head-actions">
+            <button type="button" class="btn btn-primary btn-sm" id="btnAddStation">新增台站</button>
+          </span>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>代码</th><th>名称</th><th>区域</th><th>纬度</th><th>经度</th>
+                <th>仪器</th><th>状态</th><th>震相条数</th><th>人工/自动</th><th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="stationRows"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" data-view="events" id="view-events">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>事件清单</h2>
+          <span class="hint">点一行展开震相、自动发布判定、复核历史与发布记录</span>
+          <span class="head-actions">
+            <button type="button" class="btn btn-sm" id="btnEventRefresh">刷新</button>
+          </span>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>编号</th><th>发震时刻</th><th>纬度</th><th>经度</th><th>深度</th>
+                <th>震级</th><th>台站数</th><th>残差</th><th>状态</th><th>复核次数</th><th>发布次数</th>
+              </tr>
+            </thead>
+            <tbody id="eventRows"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" data-view="arrivals" id="view-arrivals">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>震相清单</h2>
+          <span class="hint">点一行展开台站台账命中情况与备注</span>
+          <span class="head-actions">
+            <button type="button" class="btn btn-primary btn-sm" id="btnAddArrival">新增震相</button>
+            <button type="button" class="btn btn-sm" id="btnImportArrival">批量导入</button>
+          </span>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>事件</th><th>台站代码</th><th>相位</th><th>到时</th><th>振幅</th>
+                <th>残差</th><th>拾取方式</th><th>质量</th><th>拾取人</th><th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="arrivalRows"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" data-view="reviews" id="view-reviews">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>复核台账</h2>
+          <span class="hint">震级改动超过容差才需要上级确认，正好等于容差不算超</span>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>事件</th><th>复核时刻</th><th>复核人</th><th>动作</th><th>改前震级</th>
+                <th>改后震级</th><th>差值</th><th>容差</th><th>是否超容差</th><th>意见</th>
+              </tr>
+            </thead>
+            <tbody id="reviewRows"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <h2>发布台账</h2>
+          <span class="hint">同一事件只能有一条有效发布，重复发布会拦下</span>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>事件</th><th>发布时刻</th><th>类型</th><th>操作人</th><th>渠道</th><th>震级</th><th>备注</th>
+              </tr>
+            </thead>
+            <tbody id="publishRows"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </section>
+</main>
+
+<div class="modal-mask" id="modalMask" hidden>
+  <div class="modal" id="modalCard" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-head">
+      <h2 id="modalTitle">标题</h2>
+      <button type="button" class="btn btn-ghost btn-sm" id="modalClose">关闭</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-foot" id="modalFoot"></div>
+  </div>
+</div>
+
+<div class="toast-host" id="toastHost"></div>
+
+<script src="/app.js"></script>
+</body>
+</html>
